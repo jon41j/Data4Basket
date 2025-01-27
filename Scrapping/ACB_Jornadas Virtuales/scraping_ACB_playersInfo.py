@@ -40,7 +40,11 @@ def scraping_playersInfo():
             players = soup.find_all('article', class_='caja_miembro_plantilla caja_jugador_medio_cuerpo')  # Clase específica para cada jugador
             
             # Iteramos por cada jugador y extraemos el nombre y la edad
-            for player in players:              
+            for player in players:     
+                try:
+                    imageFirstPlayer = player.find('img', attrs={'alt': 'Foto Jugador'})["src"] 
+                except:
+                    imageFirstPlayer = False       
                 time.sleep(0.5)
                 link_tag = player.find('a')['href']
                 id_player_url = link_tag[(link_tag.index('ver/')+4):(link_tag.index('-'))]
@@ -53,67 +57,117 @@ def scraping_playersInfo():
                     # Parseamos el HTML con BeautifulSoup
                     try:
                         soup_player = BeautifulSoup(response_player.content, 'html.parser')
+                        try:
+                            posicion_div = soup_player.find('div', class_='datos_basicos posicion roboto_condensed')
+                            posicion_web = posicion_div.span.text
+                            posicion = obj_posiciones[posicion_web]
+                            posicion_2 = obj_posiciones_2[posicion_web]
+                        except:
+                            posicion = "-"
+                            posicion_2 = "-"
 
-                        posicion_div = soup_player.find('div', class_='datos_basicos posicion roboto_condensed')
-                        posicion_web = posicion_div.span.text
-                        posicion = obj_posiciones[posicion_web]
-                        posicion_2 = obj_posiciones_2[posicion_web]
+                        try:    
+                            altura_div = soup_player.find('div', class_='datos_basicos altura roboto_condensed')
+                            altura_txt = altura_div.span.text
+                            altura = 100*int(altura_txt[:altura_txt.index(',')]) + int(altura_txt[altura_txt.index(',')+1:altura_txt.index(' ')])
+                        except:
+                            altura = 0
 
-                        altura_div = soup_player.find('div', class_='datos_basicos altura roboto_condensed')
-                        altura_txt = altura_div.span.text
-                        altura = 100*int(altura_txt[:altura_txt.index(',')]) + int(altura_txt[altura_txt.index(',')+1:altura_txt.index(' ')])
+                        try:    
+                            lugar_nacimiento_div = soup_player.find('div', class_='datos_secundarios lugar_nacimiento roboto_condensed')
+                            lugar_nacimiento_span = lugar_nacimiento_div.find('span', class_='roboto_condensed_bold')
+                            lugar_nacimiento = lugar_nacimiento_span.text
+                            country = lugar_nacimiento[(lugar_nacimiento.index(',')+2):]
+                        except:
+                            lugar_nacimiento = "-"
+                            country = "-"
 
-                        lugar_nacimiento_div = soup_player.find('div', class_='datos_secundarios lugar_nacimiento roboto_condensed')
-                        lugar_nacimiento_span = lugar_nacimiento_div.find('span', class_='roboto_condensed_bold')
-                        lugar_nacimiento = lugar_nacimiento_span.text
-                        country = lugar_nacimiento[(lugar_nacimiento.index(',')+2):]
+                        try:
+                            fecha_nacimiento_div = soup_player.find('div', class_='datos_secundarios fecha_nacimiento roboto_condensed')
+                            fecha_nacimiento_span = fecha_nacimiento_div.find('span', class_='roboto_condensed_bold')
+                            fecha_nacimiento_txt = fecha_nacimiento_span.text
+                            fecha_nacimiento = fecha_nacimiento_txt[:(fecha_nacimiento_txt.index(' ('))]
+                            fecha_nacimiento_date = datetime.datetime.strptime(fecha_nacimiento, '%d/%m/%Y')
+                            edad = int(fecha_nacimiento_txt[(fecha_nacimiento_txt.index('(')+1):(fecha_nacimiento_txt.index(' años)'))])
+                        except:
+                            fecha_nacimiento = "-"
+                            edad = 0
 
-                        fecha_nacimiento_div = soup_player.find('div', class_='datos_secundarios fecha_nacimiento roboto_condensed')
-                        fecha_nacimiento_span = fecha_nacimiento_div.find('span', class_='roboto_condensed_bold')
-                        fecha_nacimiento_txt = fecha_nacimiento_span.text
-                        fecha_nacimiento = fecha_nacimiento_txt[:(fecha_nacimiento_txt.index(' ('))]
-                        fecha_nacimiento_date = datetime.datetime.strptime(fecha_nacimiento, '%d/%m/%Y')
-                        edad = int(fecha_nacimiento_txt[(fecha_nacimiento_txt.index('(')+1):(fecha_nacimiento_txt.index(' años)'))])
+                        try:
+                            nacionalid_div = soup_player.find('div', class_='datos_secundarios nacionalidad roboto_condensed')
+                            nacionalid_span = nacionalid_div.find('span', class_='roboto_condensed_bold')
+                            nacionalid = nacionalid_span.text
+                        except:
+                            nacionalid = "-"
 
-                        nacionalid_div = soup_player.find('div', class_='datos_secundarios nacionalidad roboto_condensed')
-                        nacionalid_span = nacionalid_div.find('span', class_='roboto_condensed_bold')
-                        nacionalid = nacionalid_span.text
+                        try:
+                            licencia_div = soup_player.find('div', class_='datos_secundarios licencia roboto_condensed')
+                            licencia_span = licencia_div.find('span', class_='roboto_condensed_bold')
+                            licencia = licencia_span.text
+                        except:
+                            licencia = "-"
 
-                        licencia_div = soup_player.find('div', class_='datos_secundarios licencia roboto_condensed')
-                        licencia_span = licencia_div.find('span', class_='roboto_condensed_bold')
-                        licencia = licencia_span.text
-
-                        div_datos = soup_player.find('div', class_='datos')
-                        image_2 = div_datos.find('div', class_='foto').find("img")["src"]
+                        try:
+                            div_datos = soup_player.find('div', class_='datos')
+                            image_2 = div_datos.find('div', class_='foto').find("img")["src"]
+                            if image_2 == '/Images/Web/silueta2.gif':
+                                if imageFirstPlayer:
+                                    image_2 = imageFirstPlayer
+                                else:
+                                    image_2 = False
+                        except:
+                            if imageFirstPlayer:
+                                image_2 = imageFirstPlayer
+                            else:
+                                image_2 = False
 
                         id_person = "ACB_" + id_player_url
 
                         pass
                         if SQL_NUBE:
                             [conexion, cursor] = conectar_BDD()
-                            sql = """
-                                    UPDATE p_players
-                                    SET position = %(position)s, position_2 = %(position_2)s, lugar_nacimiento = %(lugar_nacimiento)s, country = %(country)s, nacionality = %(nacionality)s, license = %(license)s, birthdate = %(birthdate)s, age = %(age)s, heigth = %(heigth)s, image_2 = %(image_2)s
-                                    WHERE id_person = %(id_person)s
-                                """
-                            datos = {
-                                "position": posicion,
-                                "position_2": posicion_2,
-                                "lugar_nacimiento": lugar_nacimiento,
-                                "country": country,
-                                "nacionality": nacionalid,
-                                "license": licencia,
-                                "birthdate": fecha_nacimiento_date,
-                                "age": edad,
-                                "heigth": altura,
-                                "image_2": image_2,
-                                "id_person": id_person
-                            }
+                            if image_2 == False:
+                                sql = """
+                                        UPDATE p_players
+                                        SET position = %(position)s, position_2 = %(position_2)s, lugar_nacimiento = %(lugar_nacimiento)s, country = %(country)s, nacionality = %(nacionality)s, license = %(license)s, birthdate = %(birthdate)s, age = %(age)s, heigth = %(heigth)s
+                                        WHERE id_person = %(id_person)s
+                                    """
+                                datos = {
+                                    "position": posicion,
+                                    "position_2": posicion_2,
+                                    "lugar_nacimiento": lugar_nacimiento,
+                                    "country": country,
+                                    "nacionality": nacionalid,
+                                    "license": licencia,
+                                    "birthdate": fecha_nacimiento_date,
+                                    "age": edad,
+                                    "heigth": altura,
+                                    "id_person": id_person
+                                }
+                            else:
+                                sql = """
+                                        UPDATE p_players
+                                        SET position = %(position)s, position_2 = %(position_2)s, lugar_nacimiento = %(lugar_nacimiento)s, country = %(country)s, nacionality = %(nacionality)s, license = %(license)s, birthdate = %(birthdate)s, age = %(age)s, heigth = %(heigth)s, image_2 = %(image_2)s
+                                        WHERE id_person = %(id_person)s
+                                    """
+                                datos = {
+                                    "position": posicion,
+                                    "position_2": posicion_2,
+                                    "lugar_nacimiento": lugar_nacimiento,
+                                    "country": country,
+                                    "nacionality": nacionalid,
+                                    "license": licencia,
+                                    "birthdate": fecha_nacimiento_date,
+                                    "age": edad,
+                                    "heigth": altura,
+                                    "image_2": image_2,
+                                    "id_person": id_person
+                                }
                             cursor.execute(sql, datos)
                             conexion.commit()
                             conexion.close()
                     except:
-                        pass
+                        print("Error con jugador: ",id_player_url, " . Código de error: ", response.status_code)
         else:
             print(f"Error al acceder a la página: {response.status_code}")
     print("FIN Scrapeando players info.")

@@ -793,6 +793,8 @@ def gen_jmatcheventsFive(jmatchevents, id_match, competition, startDate, team1, 
     jshoots = pd.DataFrame(jshoots)
     list_total_shoots = [False] * jshoots.shape[0]
     jshoots['repetido'] = list_total_shoots
+    segundos_start_posesion = 0
+    reloj_posesion24 = True
         
     playersLocal = []
     playersLocalName = []
@@ -1035,6 +1037,16 @@ def gen_jmatcheventsFive(jmatchevents, id_match, competition, startDate, team1, 
         points_in_the_paint_againstLocal = puntosPinturaVisitor
         points_in_the_paint_againstVisitor = puntosPinturaLocal
 
+        tirosPinturaLocal = 0
+        tirosPinturaVisitor = 0
+        if jmatchevents[event]['id_playbyplaytype'] in ['t2in', 't2out']:
+            if jmatchevents[event]['id_player'] in id_localFive:
+                [tirosPinturaLocal, jshoots] = obtenerPuntosPinturaFive(jshoots, jmatchevents[event]['id_player'], period, minute, second)
+            elif jmatchevents[event]['id_player'] in id_visitorFive:
+                [tirosPinturaVisitor, jshoots] = obtenerPuntosPinturaFive(jshoots, jmatchevents[event]['id_player'], period, minute, second)
+        tiros_in_the_paint_againstLocal = tirosPinturaVisitor
+        tiros_in_the_paint_againstVisitor = tirosPinturaLocal
+
         puntosCaLocal = 0
         puntosCaVisitor = 0
         if jmatchevents[event]['id_playbyplaytype'] in ['t2in', 't3in']:
@@ -1129,6 +1141,28 @@ def gen_jmatcheventsFive(jmatchevents, id_match, competition, startDate, team1, 
         key_five_local = str(id_match) + '_' + str(team1['id_team']) + '_E' + str(NUM_EVENT)
         key_five_visitor = str(id_match) + '_' + str(team2['id_team']) + str(NUM_EVENT)
 
+        segundos_posesion = second_game - segundos_start_posesion
+        if jmatchevents[event]['id_playbyplaytype'] in ['t2in', 't3in', 'rebD', 'stl','r_turn']:
+            segundos_start_posesion = second_game
+            reloj_posesion24 = True
+        elif jmatchevents[event]['id_playbyplaytype'] in ['t1in']:
+            if jmatchevents[event+1]['id_playbyplaytype'] in ['t1in', 't1out']:
+                pass
+            else:
+                segundos_start_posesion = second_game
+                reloj_posesion24 = True
+        elif jmatchevents[event]['id_playbyplaytype'] in ['rebO', 'foul', 'foulR']:  
+            if 24 - segundos_posesion <= 14:
+                segundos_start_posesion = second_game
+                reloj_posesion24 = False
+
+        if reloj_posesion24:
+            segundos_posesion = 24 - segundos_posesion
+        else:
+            segundos_posesion = 14 - segundos_posesion
+        if segundos_posesion < 0:
+            segundos_posesion = 0
+
         if jmatchevents[event]['id_playbyplaytype'] in ['t2in', 't2out', 't3in', 't3out', 't1in', 't1out', 'ast', 'stl', 'turn','rebD','rebO','block','blockAgainst','foul','foulR','subsIn', 'subsOut', 'end', 'start']:
             jplaybyplayFiveLocal.append({})
             jplaybyplayFiveLocal[-1] = {'key_five': key_five_local, 'id_competition': competition['id_competition'], 'id_edition': competition['id_edition'], 'id_phase': competition['id_phase'],
@@ -1148,6 +1182,8 @@ def gen_jmatcheventsFive(jmatchevents, id_match, competition, startDate, team1, 
                         'points_in_the_paint': puntosPinturaLocal, 'points_fastbreak_against': puntosCA_againstLocal, 'points_aftersteal_against': points_aftersteal_againstLocal, 
                         'points_afterassist_against': points_afterassist_againstLocal,
                         'points_secondchance_against': points_secondchance_againstLocal, 'points_in_the_paint_against': points_in_the_paint_againstLocal,
+                        'tiros_pintura': tirosPinturaLocal, 'tiros_pintura_against': tiros_in_the_paint_againstLocal, 
+                        'segundos_posesion': segundos_posesion,
                         'obj_players': obj_playersLocal.copy()
                                 }
             jplaybyplayFiveLocalAWS.append({})
@@ -1183,6 +1219,8 @@ def gen_jmatcheventsFive(jmatchevents, id_match, competition, startDate, team1, 
                         'points_in_the_paint': puntosPinturaVisitor, 'points_fastbreak_against': puntosCA_againstVisitor, 'points_aftersteal_against': points_aftersteal_againstVisitor, 
                         'points_afterassist_against': points_afterassist_againstVisitor,
                         'points_secondchance_against': points_secondchance_againstVisitor, 'points_in_the_paint_against': points_in_the_paint_againstVisitor,
+                        'tiros_pintura': tirosPinturaVisitor, 'tiros_pintura_against': tiros_in_the_paint_againstVisitor, 
+                        'segundos_posesion': segundos_posesion,
                         'obj_players': obj_playersVisitor.copy()
                                 }
             jplaybyplayFiveVisitorAWS.append({})
@@ -1269,6 +1307,9 @@ def gen_jmatcheventsFour(jplaybyplayFive):
         finishing = j4['finishing']
         points_fastbreak = j4['points_fastbreak']
         points_fastbreak_against = j4['points_fastbreak_against']
+        tirosPintura = j4['tiros_pintura']
+        tirosPintura_against = j4['tiros_pintura_against']
+        segundos_posesion = j4['segundos_posesion']
         obj_players = j4['obj_players']
     
         if j4['num_players'] == 4:
@@ -1318,7 +1359,8 @@ def gen_jmatcheventsFour(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
         elif j4['num_players'] > 4:
             player1 = j4['id_player1']
@@ -1367,7 +1409,8 @@ def gen_jmatcheventsFour(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
 
             player1 = j4['id_player1']
@@ -1416,7 +1459,8 @@ def gen_jmatcheventsFour(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }        
 
             player1 = j4['id_player1']
@@ -1465,7 +1509,8 @@ def gen_jmatcheventsFour(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
 
             player1 = j4['id_player1']
@@ -1514,7 +1559,8 @@ def gen_jmatcheventsFour(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }                                        
  
             player1 = j4['id_player2']
@@ -1563,7 +1609,8 @@ def gen_jmatcheventsFour(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }          
 
     return(jplaybyplayFour)
@@ -1611,6 +1658,9 @@ def gen_jmatcheventsThree(jplaybyplayFive):
         finishing = j3['finishing'] 
         points_fastbreak = j3['points_fastbreak']
         points_fastbreak_against = j3['points_fastbreak_against']
+        tirosPintura = j3['tiros_pintura']
+        tirosPintura_against = j3['tiros_pintura_against']
+        segundos_posesion = j3['segundos_posesion']
         obj_players = j3['obj_players']
     
         if j3['num_players'] == 3:
@@ -1658,7 +1708,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
         elif j3['num_players'] == 4:
             player1 = j3['id_player1']
@@ -1705,7 +1756,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
                             
             player1 = j3['id_player1']
@@ -1752,7 +1804,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
                                                         
             player1 = j3['id_player1']
@@ -1799,7 +1852,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
                                                         
             player1 = j3['id_player2']
@@ -1846,7 +1900,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
         elif j3['num_players'] > 4:
             player1 = j3['id_player1']
@@ -1893,7 +1948,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
 
             player1 = j3['id_player1']
@@ -1940,7 +1996,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             } 
 
             player1 = j3['id_player1']
@@ -1987,7 +2044,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
 
             player1 = j3['id_player1']
@@ -2034,7 +2092,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
 
             player1 = j3['id_player1']
@@ -2081,7 +2140,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
 
             player1 = j3['id_player1']
@@ -2128,7 +2188,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
 
             player1 = j3['id_player2']
@@ -2175,8 +2236,57 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
+
+            player1 = j3['id_player2']
+            player2 = j3['id_player3']
+            player3 = j3['id_player5']
+            name_player1 = obj_players[player1]
+            name_player2 = obj_players[player2]
+            name_player3 = obj_players[player3]
+            players = [player1, player2, player3]
+            players.sort()
+            id_three = " - ".join(players)
+            playersName = [name_player1, name_player2, name_player3]
+            playersName.sort()
+            name_three = " - ".join(playersName)
+            isInCombinationSub = 0
+            second_gameIn = 0
+            second_gameOut = 0
+            if id_playerEjecutor in id_three:
+                if id_playbyplaytype == 'subsIn':               
+                    isInCombinationSub = 1 
+                    second_gameIn = second_gameIn_total              
+                elif id_playbyplaytype == 'subsOut':            
+                    isInCombinationSub = 1    
+                    second_gameOut = second_gameOut_total
+            if id_playbyplaytype == 'start':
+                second_gameIn = second_gameIn_total 
+            elif id_playbyplaytype == 'end':
+                second_gameOut = second_gameOut_total
+
+            jplaybyplayThree.append({})
+            jplaybyplayThree[-1] = {'id_competition': id_competition, 'id_edition': id_edition, 'id_phase': id_phase, 'id_match': id_match, 'id_event': event_id, 
+                            'start_date': startDate, 'id_team': id_team, 'scoreTeam': scoreTeam,
+                            'id_rivalTeam': id_rivalTeam, 'scoreRivalTeam': scoreRivalTeam,
+                            'id_three': id_three, 'name_three': name_three, 'num_players': 3,
+                            'period': period, 'periodD': periodD, 'minute': minute, 'second': second,
+                            'second_gameIn': second_gameIn, 'isInCombinationSub': isInCombinationSub, 'second_gameOut': second_gameOut,
+                            'id_player1': player1, 'id_player2': player2,
+                            'id_player3': player3,
+                            'name_player1': name_player1, 'name_player2': name_player2,
+                            'name_player3': name_player3,
+                            'id_teamEjecutor': id_teamEjecutor,
+                            'id_playerEjecutor': id_playerEjecutor, 'id_playbyplaytype': id_playbyplaytype,
+                            'result': result, 'resultD': resultD, 'team_name': teamName, 'rival_team_name': rivalTeamName, 'difference': difference, 
+                            'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
+                            'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
+                            'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
+                            }  
 
             player1 = j3['id_player2']
             player2 = j3['id_player4']
@@ -2222,7 +2332,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
 
             player1 = j3['id_player3']
@@ -2269,7 +2380,8 @@ def gen_jmatcheventsThree(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }   
 
     return(jplaybyplayThree)    
@@ -2318,6 +2430,9 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
         finishing = j2['finishing'] 
         points_fastbreak = j2['points_fastbreak']
         points_fastbreak_against = j2['points_fastbreak_against']
+        tirosPintura = j2['tiros_pintura']
+        tirosPintura_against = j2['tiros_pintura_against']
+        segundos_posesion = j2['segundos_posesion']
         obj_players = j2['obj_players']
     
         if j2['num_players'] == 2:
@@ -2361,7 +2476,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
         elif j2['num_players'] == 3:
             player1 = j2['id_player1']
@@ -2404,7 +2520,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
                             
             player1 = j2['id_player1']
@@ -2447,7 +2564,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
                                                         
             player1 = j2['id_player2']
@@ -2490,7 +2608,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }
         elif j2['num_players'] == 4:
             player1 = j2['id_player1']
@@ -2533,7 +2652,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             } 
 
             player1 = j2['id_player1']
@@ -2576,7 +2696,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }    
                             
             player1 = j2['id_player1']
@@ -2619,7 +2740,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }    
                             
             player1 = j2['id_player2']
@@ -2662,7 +2784,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }    
                             
             player1 = j2['id_player2']
@@ -2705,7 +2828,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }    
                             
             player1 = j2['id_player3']
@@ -2748,7 +2872,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }  
         elif j2['num_players'] > 4:
             player1 = j2['id_player1']
@@ -2791,7 +2916,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             } 
 
             player1 = j2['id_player1']
@@ -2834,7 +2960,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }    
 
             player1 = j2['id_player1']
@@ -2877,7 +3004,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player1']
@@ -2920,7 +3048,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player2']
@@ -2963,7 +3092,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player2']
@@ -3006,7 +3136,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player2']
@@ -3049,7 +3180,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player3']
@@ -3092,7 +3224,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player3']
@@ -3135,7 +3268,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }     
 
             player1 = j2['id_player4']
@@ -3178,7 +3312,8 @@ def gen_jmatcheventsTwo(jplaybyplayFive):
                             'sstarting': sstarting, 'finishing': finishing, 'lado': lado,
                             'points_in_the_paint': points_in_the_paint, 'points_secondchance': points_secondchance, 'points_aftersteal': points_aftersteal,
                             'points_in_the_paint_against': points_in_the_paint_against, 'points_secondchance_against': points_secondchance_against, 'points_aftersteal_against': points_aftersteal_against,
-                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against
+                            'points_afterassist': points_afterassist, 'points_afterassist_against': points_afterassist_against, 'points_fastbreak': points_fastbreak, 'points_fastbreak_against': points_fastbreak_against,
+                            'tiros_pintura': tirosPintura, 'tiros_pintura_against': tirosPintura_against, 'segundos_posesion': segundos_posesion
                             }              
 
     return(jplaybyplayTwo)    

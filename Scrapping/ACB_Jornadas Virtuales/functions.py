@@ -187,13 +187,13 @@ def obtenerPuntosTrasRoboPlayer(id_player, jmatchevents, period):
 def obtenerPuntosCAPlayer(id_player, jmatchevents, period):
     puntosCA = 0
     for me in range(len(jmatchevents)):
-        if jmatchevents[me]['id_playbyplaytype'] == 'ca2':
+        if jmatchevents[me]['id_playbyplaytype'] == 'ca2' and (jmatchevents[me]['id_player'] == id_player) :
                 if period == 0:
                     puntosCA = puntosCA + 2
                 else:
                     if jmatchevents[me]['period'] == period:
                         puntosCA = puntosCA + 2
-        elif jmatchevents[me]['id_playbyplaytype'] == 'ca3':
+        elif jmatchevents[me]['id_playbyplaytype'] == 'ca3'  and (jmatchevents[me]['id_player'] == id_player):
                 if period == 0:
                     puntosCA = puntosCA + 3
                 else:
@@ -215,7 +215,7 @@ def obtenerPuntosPinturaFive(jshoots, id_player, period, minute, second):
                 distanciaTiro = math.sqrt((me['posX']-50)**2 + (100 - me['posY'])**2)
             
             if distanciaTiro <= 20:
-                puntosPintura = puntosPintura + 2
+                puntosPintura = puntosPintura + 1
         jshoots.loc[jshoots['key_shoot'] == key_shoot, 'repetido'] = True
     return [puntosPintura, jshoots]
 
